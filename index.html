@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BillNova AI</title>
+</head>
+<body>
+<style>
+  * { box-sizing: border-box; }
+  #billnova-app { margin: 0; font-family: Arial, sans-serif; display: flex; background: #f4f5f7; min-height: 100vh; color: #222; }
+  #billnova-app .sidebar {
+    width: 200px; background: #0d1b2a; color: white; padding: 20px 0; flex-shrink: 0;
+  }
+  #billnova-app .sidebar h2 { padding: 0 20px; margin: 0 0 20px; font-size: 18px; }
+  #billnova-app .sidebar h2 span { color: #4dabf7; }
+  #billnova-app .sidebar a {
+    display: block; color: #cfd8dc; text-decoration: none; padding: 12px 20px; font-size: 14px; cursor: pointer;
+  }
+  #billnova-app .sidebar a.active, #billnova-app .sidebar a:hover { background: #1b98e0; color: white; }
+  #billnova-app .content { flex: 1; padding: 25px 30px; min-width: 0; }
+  #billnova-app .section { display: none; }
+  #billnova-app .section.active { display: block; }
+  #billnova-app table { width: 100%; border-collapse: collapse; background: white; margin-top: 15px; font-size: 14px; }
+  #billnova-app th, #billnova-app td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; }
+  #billnova-app th { background: #fafafa; color: #666; font-size: 12px; text-transform: uppercase; }
+  #billnova-app .status { padding: 3px 9px; border-radius: 12px; font-size: 11px; }
+  #billnova-app .status.Paid { background: #d3f9d8; color: #2b8a3e; }
+  #billnova-app .status.Unpaid { background: #ffe8cc; color: #d9480f; }
+  #billnova-app .btn {
+    display: inline-block; padding: 7px 14px; background: #1b98e0; color: white;
+    text-decoration: none; border-radius: 5px; font-size: 13px; border: none; cursor: pointer; margin-right: 6px; margin-top: 4px;
+  }
+  #billnova-app .btn.danger { background: #e03131; }
+  #billnova-app .btn.secondary { background: #868e96; }
+  #billnova-app .form-box { background: white; padding: 18px; border-radius: 8px; margin-bottom: 18px; max-width: 650px; }
+  #billnova-app .form-box input, #billnova-app .form-box textarea, #billnova-app .form-box select {
+    padding: 8px; margin: 4px 8px 4px 0; border: 1px solid #ccc; border-radius: 5px; width: 220px; font-size: 14px;
+  }
+  #billnova-app label { font-size: 12px; color: #555; display: block; margin-top: 8px; }
+  #billnova-app .stats { display: flex; gap: 15px; margin-top: 15px; flex-wrap: wrap; }
+  #billnova-app .stat-card { background: white; padding: 18px; border-radius: 8px; flex: 1; min-width: 140px; }
+  #billnova-app .stat-card h3 { margin: 0; font-size: 24px; color: #1b98e0; }
+  #billnova-app .stat-card p { margin: 5px 0 0; color: #666; font-size: 13px; }
+  #billnova-app .item-row { display: flex; gap: 8px; margin-bottom: 6px; }
+  #billnova-app .item-row input { width: 130px; }
+  #billnova-app .bill-box { background: white; padding: 25px; border-radius: 8px; max-width: 600px; }
+  #billnova-app .bill-header { display: flex; justify-content: space-between; align-items: flex-start; }
+  #billnova-app .empty { color: #999; font-size: 13px; margin-top: 10px; }
+  @media print {
+    #billnova-app .sidebar, #billnova-app .no-print { display: none !important; }
+    #billnova-app .content { padding: 0; }
+  }
+</style>
+
+<div id="billnova-app">
+  <div class="sidebar no-print">
+    <h2>BillNova <span>AI</span></h2>
+    <a data-section="dashboard" class="active">Dashboard</a>
+    <a data-section="invoices">Invoices</a>
+    <a data-section="customers">Customers</a>
+    <a data-section="products">Products</a>
+    <a data-section="reports">Reports</a>
+    <a data-section="settings">Settings</a>
+  </div>
+
+  <div class="content">
+
+    <div id="sec-dashboard" class="section active">
+      <h1>Dashboard</h1>
+      <p>Overview of your business.</p>
+      <div class="stats" id="dashboardStats"></div>
+      <p style="margin-top:20px;"><button class="btn" data-goto="createInvoice">+ Create New Invoice</button></p>
+    </div>
+
+    <div id="sec-products" class="section">
+      <h1>Products</h1>
+      <p>Manage your product catalog and stock levels.</p>
+      <div class="form-box">
+        <h3>Add New Product</h3>
+        <form id="productForm">
+          <label>Product Name</label>
+          <input type="text" id="p_name" placeholder="e.g. Laptop" required>
+          <label>Price (₹)</label>
+          <input type="number" step="0.01" id="p_price" placeholder="e.g. 50000" required>
+          <label>Stock Quantity</label>
+          <input type="number" id="p_stock" placeholder="e.g. 10" required>
+          <br><br>
+          <button class="btn" type="submit">+ Add Product</button>
+        </form>
+      </div>
+      <table id="productsTable"><tr><th>Name</th><th>Price</th><th>Stock</th><th>Status</th><th>Action</th></tr></table>
+      <p class="empty" id="productsEmpty" style="display:none;">Koi product add nahi hua abhi.</p>
+    </div>
+
+    <div id="sec-customers" class="section">
+      <h1>Customers</h1>
+      <p>Manage your customer list.</p>
+      <div class="form-box">
+        <h3>Add New Customer</h3>
+        <form id="customerForm">
+          <label>Name</label>
+          <input type="text" id="c_name" placeholder="e.g. Alice" required>
+          <label>Phone</label>
+          <input type="text" id="c_phone" placeholder="e.g. 9876543210" required>
+          <label>Email (optional)</label>
+          <input type="email" id="c_email" placeholder="e.g. alice@email.com">
+          <br><br>
+          <button class="btn" type="submit">+ Add Customer</button>
+        </form>
+      </div>
+      <table id="customersTable"><tr><th>Name</th><th>Phone</th><th>Email</th><th>Action</th></tr></table>
+      <p class="empty" id="customersEmpty" style="display:none;">Koi customer add nahi hua abhi.</p>
+    </div>
+
+    <div id="sec-invoices" class="section">
+      <h1>Invoices</h1>
+      <p>All customer invoices in one place.</p>
+      <button class="btn" data-goto="createInvoice">+ Create Invoice</button>
+      <table id="invoicesTable"><tr><th>ID</th><th>Customer</th><th>Date</th><th>Total (₹)</th><th>Payment</th><th>Status</th><th>Action</th></tr></table>
+      <p class="empty" id="invoicesEmpty" style="display:none;">Koi invoice banaya nahi hai abhi.</p>
+    </div>
+
+    <div id="sec-createInvoice" class="section">
+      <h1>Create Invoice</h1>
+      <p>Fill customer and item details to generate a bill, ya voice se bhi bhar sakte ho.</p>
+
+      <div class="form-box no-print" id="voiceBox">
+        <h3>🎤 AI Voice Assistant</h3>
+        <p style="font-size:13px;color:#666;margin-top:0;">
+          Ek hi saans mein bolo, is pattern mein: <br>
+          <i>"customer [naam] phone [number] item [product] quantity [qty] price [price]"</i>
+        </p>
+        <button type="button" class="btn" id="smartVoiceBtn">🎤 Fill by Voice (Smart)</button>
+        <span id="voiceStatus" style="font-size:13px;color:#666;margin-left:8px;"></span>
+      </div>
+
+      <div class="form-box">
+        <form id="invoiceForm">
+          <label>Customer Name</label>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input type="text" id="i_name" placeholder="e.g. Alice" required>
+            <button type="button" class="btn secondary" data-mic="i_name" title="Speak">🎤</button>
+          </div>
+          <label>Phone</label>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input type="text" id="i_phone" placeholder="e.g. 9876543210" required>
+            <button type="button" class="btn secondary" data-mic="i_phone" title="Speak">🎤</button>
+          </div>
+          <label>Email (optional)</label>
+          <input type="email" id="i_email" placeholder="e.g. alice@email.com">
+          <label>Payment Mode</label>
+          <select id="i_payment" required>
+            <option value="Cash">Cash</option>
+            <option value="UPI">UPI</option>
+            <option value="Bank">Bank Account</option>
+          </select>
+          <h3>Items</h3>
+          <div id="itemRows">
+            <div class="item-row">
+              <input type="text" class="item_name" placeholder="Item name" list="productList" required>
+              <input type="number" class="item_qty" placeholder="Qty" value="1" required>
+              <input type="number" step="0.01" class="item_price" placeholder="Price" required>
+              <button type="button" class="btn secondary" data-mic-field="item_name" title="Speak item name">🎤</button>
+            </div>
+          </div>
+          <datalist id="productList"></datalist>
+          <button type="button" class="btn secondary" id="addItemRowBtn">+ Add Item</button>
+          <br><br>
+          <button class="btn" type="submit">Generate Invoice</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="sec-viewInvoice" class="section">
+      <div class="bill-box" id="billBox"></div>
+      <p class="no-print">
+        <button class="btn" id="printBillBtn">Print Bill</button>
+        <button class="btn secondary" data-goto="invoices">Back to Invoices</button>
+      </p>
+    </div>
+
+    <div id="sec-settings" class="section">
+      <h1>Settings</h1>
+      <p>Set up your business details — this appears on every bill.</p>
+      <div class="form-box">
+        <form id="settingsForm">
+          <label>Business Name</label>
+          <input type="text" id="b_name" required>
+          <label>Contact Number</label>
+          <input type="text" id="b_contact" required>
+          <label>Address</label>
+          <textarea id="b_address" rows="3" required></textarea>
+          <label>Business Logo (optional)</label>
+          <input type="file" id="b_logo" accept="image/*">
+          <label>Signature Image (optional, white background)</label>
+          <input type="file" id="b_signature" accept="image/*">
+          <br><br>
+          <button class="btn" type="submit">Save Business Details</button>
+        </form>
+      </div>
+      <div class="form-box" id="currentBusinessBox" style="display:none;">
+        <h3>Current Details</h3>
+        <div id="currentBusinessInfo"></div>
+      </div>
+    </div>
+
+    <div id="sec-reports" class="section">
+      <h1>Reports</h1>
+      <p>Payment summary across all invoices.</p>
+      <div class="stats" id="reportsStats"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function () {
+  let products = [];
+  let customers = [];
+  let invoices = [];
+  let business = null;
+  let currentInvoiceId = null;
+
+  const app = document.getElementById("billnova-app");
+  const q = (sel) => app.querySelector(sel);
+  const qa = (sel) => app.querySelectorAll(sel);
+
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+  async function loadAll() {
+    try {
+      const p = localStorage.getItem("billnova_products");
+      products = p ? JSON.parse(p) : [];
+    } catch (e) { products = []; }
+    try {
+      const c = localStorage.getItem("billnova_customers");
+      customers = c ? JSON.parse(c) : [];
+    } catch (e) { customers = []; }
+    try {
+      const inv = localStorage.getItem("billnova_invoices");
+      invoices = inv ? JSON.parse(inv) : [];
+    } catch (e) { invoices = []; }
+    try {
+      const b = localStorage.getItem("billnova_business");
+      business = b ? JSON.parse(b) : null;
+    } catch (e) { business = null; }
+
+    renderProducts();
+    renderCustomers();
+    renderInvoices();
+    renderDashboard();
+    renderReports();
+    renderSettings();
+  }
+
+  async function saveProducts() { localStorage.setItem("billnova_products", JSON.stringify(products)); }
+  async function saveCustomers() { localStorage.setItem("billnova_customers", JSON.stringify(customers)); }
+  async function saveInvoices() { localStorage.setItem("billnova_invoices", JSON.stringify(invoices)); }
+  async function saveBusiness() { localStorage.setItem("billnova_business", JSON.stringify(business)); }
+
+  function showSection(name) {
+    qa(".section").forEach((s) => s.classList.remove("active"));
+    const target = q("#sec-" + name);
+    if (target) target.classList.add("active");
+    qa(".sidebar a").forEach((a) => a.classList.remove("active"));
+    const navLink = q('.sidebar a[data-section="' + name + '"]');
+    if (navLink) navLink.classList.add("active");
+    if (name === "createInvoice") {
+      populateProductDatalist();
+    }
+  }
+
+  qa(".sidebar a").forEach((a) => {
+    a.addEventListener("click", () => showSection(a.dataset.section));
+  });
+  qa("[data-goto]").forEach((el) => {
+    el.addEventListener("click", () => showSection(el.dataset.goto));
+  });
+
+  // ---------- DASHBOARD ----------
+  function renderDashboard() {
+    const totalInvoices = invoices.length;
+    const totalRevenue = invoices.reduce((sum, inv) => sum + inv.total, 0);
+    const unpaidCount = invoices.filter((inv) => inv.status === "Unpaid").length;
+    q("#dashboardStats").innerHTML =
+      statCard(totalInvoices, "Total Invoices") +
+      statCard("₹" + totalRevenue, "Total Revenue") +
+      statCard(unpaidCount, "Unpaid Invoices") +
+      statCard(products.length, "Products") +
+      statCard(customers.length, "Customers");
+  }
+  function statCard(value, label) {
+    return '<div class="stat-card"><h3>' + value + '</h3><p>' + label + '</p></div>';
+  }
+
+  // ---------- PRODUCTS ----------
+  q("#productForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = q("#p_name").value.trim();
+    const price = parseFloat(q("#p_price").value);
+    const stock = parseInt(q("#p_stock").value, 10);
+    if (!name) return;
+    products.push({ id: uid(), name, price, stock });
+    await saveProducts();
+    e.target.reset();
+    renderProducts();
+    renderDashboard();
+  });
+
+  function renderProducts() {
+    const table = q("#productsTable");
+    table.querySelectorAll("tr:not(:first-child)").forEach((r) => r.remove());
+    products.forEach((p) => {
+      const statusHtml = p.stock < 5
+        ? '<span class="status Unpaid">Low Stock</span>'
+        : '<span class="status Paid">In Stock</span>';
+      const tr = document.createElement("tr");
+      tr.innerHTML =
+        "<td>" + escapeHtml(p.name) + "</td>" +
+        "<td>₹" + p.price + "</td>" +
+        "<td>" + p.stock + "</td>" +
+        "<td>" + statusHtml + "</td>" +
+        '<td><button class="btn danger" data-del-product="' + p.id + '">Delete</button></td>';
+      table.appendChild(tr);
+    });
+    q("#productsEmpty").style.display = products.length ? "none" : "block";
+    table.querySelectorAll("[data-del-product]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        products = products.filter((p) => p.id !== btn.dataset.delProduct);
+        await saveProducts();
+        renderProducts();
+        renderDashboard();
+      });
+    });
+  }
+
+  // ---------- CUSTOMERS ----------
+  q("#customerForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = q("#c_name").value.trim();
+    const phone = q("#c_phone").value.trim();
+    const email = q("#c_email").value.trim();
+    if (!name || !phone) return;
+    customers.push({ id: uid(), name, phone, email });
+    await saveCustomers();
+    e.target.reset();
+    renderCustomers();
+    renderDashboard();
+  });
+
+  function renderCustomers() {
+    const table = q("#customersTable");
+    table.querySelectorAll("tr:not(:first-child)").forEach((r) => r.remove());
+    customers.forEach((c) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML =
+        "<td>" + escapeHtml(c.name) + "</td>" +
+        "<td>" + escapeHtml(c.phone) + "</td>" +
+        "<td>" + escapeHtml(c.email || "") + "</td>" +
+        '<td><button class="btn danger" data-del-customer="' + c.id + '">Delete</button></td>';
+      table.appendChild(tr);
+    });
+    q("#customersEmpty").style.display = customers.length ? "none" : "block";
+    table.querySelectorAll("[data-del-customer]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        customers = customers.filter((c) => c.id !== btn.dataset.delCustomer);
+        await saveCustomers();
+        renderCustomers();
+        renderDashboard();
+      });
+    });
+  }
+
+  // ---------- INVOICES ----------
+  function renderInvoices() {
+    const table = q("#invoicesTable");
+    table.querySelectorAll("tr:not(:first-child)").forEach((r) => r.remove());
+    invoices.slice().reverse().forEach((inv) => {
+      const tr = document.createElement("tr");
+      const markPaidBtn = inv.status === "Unpaid"
+        ? '<button class="btn" data-mark-paid="' + inv.id + '">Mark Paid</button>'
+        : "";
+      tr.innerHTML =
+        "<td>" + inv.id + "</td>" +
+        "<td>" + escapeHtml(inv.customerName) + "</td>" +
+        "<td>" + inv.date + "</td>" +
+        "<td>₹" + inv.total + "</td>" +
+        "<td>" + inv.paymentMode + "</td>" +
+        '<td><span class="status ' + inv.status + '">' + inv.status + "</span></td>" +
+        '<td><button class="btn secondary" data-view-invoice="' + inv.id + '">View</button>' +
+        markPaidBtn +
+        '<button class="btn danger" data-del-invoice="' + inv.id + '">Delete</button></td>';
+      table.appendChild(tr);
+    });
+    q("#invoicesEmpty").style.display = invoices.length ? "none" : "block";
+
+    table.querySelectorAll("[data-mark-paid]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const inv = invoices.find((i) => i.id === btn.dataset.markPaid);
+        if (inv) inv.status = "Paid";
+        await saveInvoices();
+        renderInvoices();
+        renderDashboard();
+        renderReports();
+      });
+    });
+    table.querySelectorAll("[data-del-invoice]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        invoices = invoices.filter((i) => i.id !== btn.dataset.delInvoice);
+        await saveInvoices();
+        renderInvoices();
+        renderDashboard();
+        renderReports();
+      });
+    });
+    table.querySelectorAll("[data-view-invoice]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        showInvoiceBill(btn.dataset.viewInvoice);
+      });
+    });
+  }
+
+  // ---------- CREATE INVOICE ----------
+  function populateProductDatalist() {
+    const datalist = q("#productList");
+    datalist.innerHTML = "";
+    products.forEach((p) => {
+      const opt = document.createElement("option");
+      opt.value = p.name;
+      datalist.appendChild(opt);
+    });
+  }
+
+  q("#addItemRowBtn").addEventListener("click", () => {
+    const container = q("#itemRows");
+    const row = document.createElement("div");
+    row.className = "item-row";
+    row.innerHTML =
+      '<input type="text" class="item_name" placeholder="Item name" list="productList" required>' +
+      '<input type="number" class="item_qty" placeholder="Qty" value="1" required>' +
+      '<input type="number" step="0.01" class="item_price" placeholder="Price" required>' +
+      '<button type="button" class="btn secondary" data-mic-field="item_name" title="Speak item name">🎤</button>';
+    container.appendChild(row);
+    attachRowMicButtons(row);
+  });
+
+  q("#invoiceForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const customerName = q("#i_name").value.trim();
+    const phone = q("#i_phone").value.trim();
+    const email = q("#i_email").value.trim();
+    const paymentMode = q("#i_payment").value;
+
+    const names = qa("#itemRows .item_name");
+    const qtys = qa("#itemRows .item_qty");
+    const prices = qa("#itemRows .item_price");
+
+    let total = 0;
+    const items = [];
+    for (let idx = 0; idx < names.length; idx++) {
+      const n = names[idx].value.trim();
+      if (!n) continue;
+      const qty = parseInt(qtys[idx].value, 10) || 0;
+      const price = parseFloat(prices[idx].value) || 0;
+      total += qty * price;
+      items.push({ name: n, qty, price });
+    }
+    if (items.length === 0) return;
+
+    const today = new Date().toISOString().slice(0, 10);
+    const newInvoice = {
+      id: invoices.length ? Math.max(...invoices.map((i) => i.id)) + 1 : 1,
+      customerName, phone, email, date: today, items, total, paymentMode, status: "Unpaid"
+    };
+    invoices.push(newInvoice);
+    await saveInvoices();
+    e.target.reset();
+    q("#itemRows").innerHTML =
+      '<div class="item-row">' +
+      '<input type="text" class="item_name" placeholder="Item name" list="productList" required>' +
+      '<input type="number" class="item_qty" placeholder="Qty" value="1" required>' +
+      '<input type="number" step="0.01" class="item_price" placeholder="Price" required>' +
+      '<button type="button" class="btn secondary" data-mic-field="item_name" title="Speak item name">🎤</button>' +
+      "</div>";
+    attachRowMicButtons(q("#itemRows .item-row"));
+
+    renderInvoices();
+    renderDashboard();
+    renderReports();
+    showInvoiceBill(newInvoice.id);
+  });
+
+  // ---------- VIEW / PRINT INVOICE ----------
+  function showInvoiceBill(invoiceId) {
+    const inv = invoices.find((i) => i.id == invoiceId);
+    if (!inv) return;
+    currentInvoiceId = inv.id;
+
+    const bizName = business ? escapeHtml(business.name) : "Your Business Name";
+    const bizContact = business ? escapeHtml(business.contact) : "-";
+    const bizAddress = business ? escapeHtml(business.address) : "-";
+    const logoHtml = business && business.logo
+      ? '<img src="' + business.logo + '" alt="Logo" style="height:70px;">' : "";
+    const sigHtml = business && business.signature
+      ? '<img src="' + business.signature + '" alt="Signature" style="height:55px;"><br>' : "";
+
+    let itemsHtml = "";
+    inv.items.forEach((it) => {
+      itemsHtml +=
+        "<tr><td>" + escapeHtml(it.name) + "</td><td>₹" + it.price + "</td><td>" + it.qty +
+        "</td><td>₹" + (it.price * it.qty) + "</td></tr>";
+    });
+
+    q("#billBox").innerHTML =
+      '<div class="bill-header">' +
+      "<div><h2>" + bizName + "</h2><p>Contact: " + bizContact + "</p><p>Address: " + bizAddress + "</p></div>" +
+      "<div>" + logoHtml + "</div>" +
+      "</div><hr>" +
+      "<p><b>Bill No:</b> " + inv.id + "</p>" +
+      "<p><b>Date:</b> " + inv.date + "</p>" +
+      "<p><b>Customer Name:</b> " + escapeHtml(inv.customerName) + "</p>" +
+      "<p><b>Contact:</b> " + escapeHtml(inv.phone) + "</p>" +
+      (inv.email ? "<p><b>Email:</b> " + escapeHtml(inv.email) + "</p>" : "") +
+      "<p><b>Payment Mode:</b> " + inv.paymentMode + "</p>" +
+      "<table><tr><th>Item</th><th>Price</th><th>Qty</th><th>Subtotal</th></tr>" + itemsHtml + "</table>" +
+      "<h3>Total: ₹" + inv.total + "</h3>" +
+      "<p>Thanks for our services.</p>" +
+      "<p>This bill generated by " + bizName + "</p>" +
+      sigHtml +
+      "<p>Signature of Customer: ______________</p>";
+
+    showSection("viewInvoice");
+  }
+
+  q("#printBillBtn").addEventListener("click", () => window.print());
+
+  // ---------- SETTINGS ----------
+  function fileToDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  q("#settingsForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = q("#b_name").value.trim();
+    const contact = q("#b_contact").value.trim();
+    const address = q("#b_address").value.trim();
+    const logoFile = q("#b_logo").files[0];
+    const sigFile = q("#b_signature").files[0];
+
+    let logo = business ? business.logo : null;
+    let signature = business ? business.signature : null;
+
+    try {
+      if (logoFile) logo = await fileToDataUrl(logoFile);
+      if (sigFile) signature = await fileToDataUrl(sigFile);
+    } catch (err) {
+      console.error("File read error:", err);
+    }
+
+    business = { name, contact, address, logo, signature };
+    await saveBusiness();
+    renderSettings();
+  });
+
+  function renderSettings() {
+    if (!business) {
+      q("#currentBusinessBox").style.display = "none";
+      if (!q("#b_name").value) q("#b_name").value = "Sachin's Business";
+      return;
+    }
+    q("#b_name").value = business.name || "";
+    q("#b_contact").value = business.contact || "";
+    q("#b_address").value = business.address || "";
+
+    const logoHtml = business.logo
+      ? "<p><b>Logo:</b><br><img src='" + business.logo + "' style='height:70px;'></p>" : "";
+    const sigHtml = business.signature
+      ? "<p><b>Signature:</b><br><img src='" + business.signature + "' style='height:55px;'></p>" : "";
+
+    q("#currentBusinessInfo").innerHTML =
+      "<p><b>Name:</b> " + escapeHtml(business.name) + "</p>" +
+      "<p><b>Contact:</b> " + escapeHtml(business.contact) + "</p>" +
+      "<p><b>Address:</b> " + escapeHtml(business.address) + "</p>" +
+      logoHtml + sigHtml;
+    q("#currentBusinessBox").style.display = "block";
+  }
+
+  // ---------- REPORTS ----------
+  function renderReports() {
+    const paidTotal = invoices.filter((i) => i.status === "Paid").reduce((s, i) => s + i.total, 0);
+    const unpaidTotal = invoices.filter((i) => i.status === "Unpaid").reduce((s, i) => s + i.total, 0);
+    q("#reportsStats").innerHTML =
+      statCard("₹" + paidTotal, "Total Paid") + statCard("₹" + unpaidTotal, "Total Unpaid");
+  }
+
+  // ---------- AI VOICE ASSISTANT ----------
+  function getSpeechRecognition() {
+    return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+  }
+
+  function startMic(onResult, onError) {
+    if (!window.isSecureContext) {
+      alert(
+        "Voice feature is file/URL pe kaam nahi karega, kyunki ye 'secure' (HTTPS) origin nahi hai.\n\n" +
+        "Ye tabhi kaam karega jab is website ko GitHub Pages (ya kisi bhi HTTPS hosting) pe upload karoge, ya localhost server se khologe."
+      );
+      return;
+    }
+    const SpeechRecognition = getSpeechRecognition();
+    if (!SpeechRecognition) {
+      alert("Voice feature sirf Chrome/Edge browser mein kaam karta hai. Kripya Chrome se try karo.");
+      return;
+    }
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = "en-IN";
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+      recognition.onresult = (e) => {
+        const transcript = e.results[0][0].transcript;
+        onResult(transcript);
+      };
+      recognition.onerror = (e) => {
+        console.error("Speech recognition error:", e.error);
+        if (e.error === "not-allowed") {
+          alert("Microphone permission block hai. Address bar ke 🔒 icon pe click karke Microphone allow karo, phir dubara try karo.");
+        }
+        if (onError) onError(e.error);
+      };
+      recognition.start();
+    } catch (err) {
+      console.error("Voice start error:", err);
+      alert("Voice start nahi ho paya: " + err.message);
+      if (onError) onError(err.message);
+    }
+  }
+
+  // Individual field mic buttons (id-based, e.g. i_name, i_phone)
+  qa("[data-mic]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const original = btn.textContent;
+      btn.textContent = "🎙️";
+      startMic(
+        (text) => {
+          const target = q("#" + btn.dataset.mic);
+          if (target) target.value = text.trim();
+          btn.textContent = original;
+        },
+        () => { btn.textContent = original; }
+      );
+    });
+  });
+
+  // Row-level mic buttons (class-based, e.g. item_name inside a specific .item-row)
+  function attachRowMicButtons(row) {
+    row.querySelectorAll("[data-mic-field]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const original = btn.textContent;
+        btn.textContent = "🎙️";
+        startMic(
+          (text) => {
+            const fieldClass = btn.dataset.micField;
+            const input = row.querySelector("." + fieldClass);
+            if (input) input.value = text.trim();
+            btn.textContent = original;
+          },
+          () => { btn.textContent = original; }
+        );
+      });
+    });
+  }
+  attachRowMicButtons(q("#itemRows .item-row"));
+
+  // Smart Voice Fill: speak the whole invoice in one go
+  function parseVoiceInvoice(text) {
+    const lower = text.toLowerCase();
+    const get = (regex) => {
+      const m = lower.match(regex);
+      return m ? m[1].trim() : "";
+    };
+    const name = get(/(?:customer|naam|name)\s+(?:name\s+)?(?:is\s+)?([a-z ]+?)(?=\s+(?:phone|number|mobile|item|product|$))/);
+    const phoneMatch = lower.match(/(?:phone|number|mobile)\s+(?:number\s+)?(?:is\s+)?\D*(\d{6,12})/);
+    const phone = phoneMatch ? phoneMatch[1] : "";
+    const item = get(/(?:item|product)\s+(?:name\s+)?(?:is\s+)?([a-z ]+?)(?=\s+(?:quantity|qty|price|rate|$))/);
+    const qtyMatch = lower.match(/(?:quantity|qty)\s+(?:is\s+)?\D*(\d+)/);
+    const qty = qtyMatch ? qtyMatch[1] : "1";
+    const priceMatch = lower.match(/(?:price|rate)\s+(?:is\s+)?\D*(\d+(\.\d+)?)/);
+    const price = priceMatch ? priceMatch[1] : "";
+    return { name, phone, item, qty, price };
+  }
+
+  q("#smartVoiceBtn").addEventListener("click", () => {
+    q("#voiceStatus").textContent = "🔴 Sun raha hoon... bolo.";
+    startMic(
+      (transcript) => {
+        q("#voiceStatus").textContent = "";
+        const parsed = parseVoiceInvoice(transcript);
+        showVoiceConfirm(transcript, parsed);
+      },
+      () => { q("#voiceStatus").textContent = "Kuch sunayi nahi diya, dobara try karo."; }
+    );
+  });
+
+  function showVoiceConfirm(transcript, parsed) {
+    const overlay = document.createElement("div");
+    overlay.id = "voiceConfirmOverlay";
+    overlay.style.cssText =
+      "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);" +
+      "display:flex;align-items:center;justify-content:center;z-index:9999;";
+    overlay.innerHTML =
+      '<div style="background:white;padding:22px;border-radius:8px;max-width:380px;width:90%;">' +
+      "<h3>🎤 AI ne ye samjha:</h3>" +
+      "<p><b>Customer:</b> " + escapeHtml(parsed.name || "-") + "</p>" +
+      "<p><b>Phone:</b> " + escapeHtml(parsed.phone || "-") + "</p>" +
+      "<p><b>Item:</b> " + escapeHtml(parsed.item || "-") + "</p>" +
+      "<p><b>Qty:</b> " + escapeHtml(parsed.qty || "-") + "</p>" +
+      "<p><b>Price:</b> " + escapeHtml(parsed.price || "-") + "</p>" +
+      '<p style="font-size:12px;color:#888;">Suna: "' + escapeHtml(transcript) + '"</p>' +
+      '<div style="margin-top:14px;">' +
+      '<button class="btn" id="voiceConfirmYes">✅ Yes, Generate Bill</button>' +
+      '<button class="btn secondary" id="voiceConfirmNo">❌ No, Cancel</button>' +
+      "</div></div>";
+    document.body.appendChild(overlay);
+
+    overlay.querySelector("#voiceConfirmYes").addEventListener("click", () => {
+      q("#i_name").value = parsed.name;
+      q("#i_phone").value = parsed.phone;
+      const firstRow = q("#itemRows .item-row");
+      if (firstRow) {
+        firstRow.querySelector(".item_name").value = parsed.item;
+        firstRow.querySelector(".item_qty").value = parsed.qty || "1";
+        firstRow.querySelector(".item_price").value = parsed.price;
+      }
+      overlay.remove();
+      q("#invoiceForm").requestSubmit();
+    });
+    overlay.querySelector("#voiceConfirmNo").addEventListener("click", () => {
+      overlay.remove();
+    });
+  }
+
+  // ---------- HELPERS ----------
+  function escapeHtml(str) {
+    if (str === undefined || str === null) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  loadAll();
+})();
+</script>
+</body>
+</html>
